@@ -72,7 +72,7 @@ const chk=r=>{if(r.error)throw r.error};
 async function up(f){const path=`${boat.slug}/${Date.now()}-${f.name.replace(/[^\w.]/g,'_')}`;const r=await sb.storage.from('product-images').upload(path,f);if(r.error)throw r.error;return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}
 
 function form(title,fields,v,save,extra='',after){
-  const d=$('#dlg'),g=k=>k.startsWith('tr.')?v.translations?.[k.split('.')[1]]?.[k.split('.')[2]]:g(k);
+  const d=$('#dlg'),g=k=>k.startsWith('tr.')?v.translations?.[k.split('.')[1]]?.[k.split('.')[2]]:v[k];
   d.innerHTML=`<h3>${title}</h3>${fields.map(([k,l,t])=>t==='check'?`<label class="chk"><input type="checkbox" name="${k}" ${g(k)??false?'checked':''}> ${l}</label>`:t==='area'?`<label>${l}<textarea name="${k}" rows="3">${esc(g(k))}</textarea></label>`:t==='img'?`<label>${l}<input type="file" accept="image/*" name="${k}">${g(k)?`<img class="th" src="${esc(g(k))}">`:''}</label>`:t==='cat'?`<label>${l}<select name="${k}">${cats.map(c=>`<option value="${c.id}" ${String(c.id)===String(g(k))?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:`<label>${l}<input name="${k}" type="${t}" step="any" value="${esc(g(k))}"></label>`).join('')}${extra}<div class="row sp"><button class="g" id="x">Cancelar</button><button id="ok">Salvar</button></div>`;
   d.showModal();if(after)after();
   $('#x').onclick=()=>d.close();
