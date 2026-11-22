@@ -45,8 +45,8 @@ let slug=location.pathname.split('/').filter(Boolean)[0]||'';
 if(!slug||slug.endsWith('.html'))slug=new URLSearchParams(location.search).get('b')||'';
 if(!slug||slug.endsWith('.html'))slug='foz'; // o link antigo (QR code) abre o Kattamaram II
 async function load(){
-  const {data:boat}=await sb.from('boats').select('*').eq('slug',slug).maybeSingle();
-  if(!boat){D=null;return render()}
+  const {data:boat,error}=await sb.from('boats').select('*').eq('slug',slug).maybeSingle();
+  if(!boat){D=null;window.__err=error?(error.message||error.code||'erro'):'Conectou, mas não achou o barco "'+slug+'" na tabela boats (confira se ela tem as 3 linhas).';return render()}
   const [c,p]=await Promise.all([
     sb.from('categories').select('*').eq('boat_id',boat.id).eq('active',true).order('position'),
     sb.from('products').select('*').eq('boat_id',boat.id).eq('active',true).order('position')]);
@@ -55,7 +55,7 @@ async function load(){
 const card=p=>`<div class="p">${p.image_url?`<img src="${esc(p.image_url)}" alt="" loading="lazy">`:''}<div style="flex:1"><h3>${esc(tr(p,'name'))}</h3>${p.description?`<p>${esc(tr(p,'description'))}</p>`:''}${p.price!=null?`<div class="pr">${money(p.price)}</div>`:''}${(Array.isArray(p.options)?p.options:[]).map(o=>`<div class="o"><span>${esc(tr(o,'name'))}</span><span>${o.price>0?'+ '+money(o.price):''}</span></div>`).join('')}</div></div>`;
 function render(){
   const t=T[lang];document.documentElement.lang=lang==='pt'?'pt-BR':lang;$('#lg').value=lang;
-  if(!D){$('#app').innerHTML=`<div class="msg">${t.n}</div>`;return}
+  if(!D){$('#app').innerHTML=`<div class="msg">${t.n}<br><small>${esc(window.__err||'')}</small></div>`;return}
   const {boat,cats,prods}=D,fe=prods.filter(p=>p.featured);
   document.title=boat.name+' — '+t.t;$('#bn').textContent=boat.name.split('•')[0].trim().toUpperCase();
   const links=[boat.instagram&&`<a href="https://instagram.com/${esc(boat.instagram)}">Instagram</a>`,boat.whatsapp&&`<a href="https://wa.me/${esc(boat.whatsapp)}">WhatsApp</a>`].filter(Boolean).join('');
