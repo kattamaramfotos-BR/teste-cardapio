@@ -58,13 +58,34 @@ async function load(){
 }
 function render(){
   app.innerHTML=`<div class="top">${me.role==='admin'?`<select id="bs">${boats.map(b=>`<option value="${b.id}" ${b.id===boat.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select>`:`<b style="flex:1">${esc(boat.name)}</b>`}
-  <button class="g" id="eb">Dados do barco</button><a href="/${esc(boat.slug)}" target="_blank"><button class="g">Ver cardápio</button></a><button class="g" onclick="out()">Sair</button></div>
+  <button class="g" id="eb">Personalizar capa</button><a href="/${esc(boat.slug)}" target="_blank"><button class="g">Ver cardápio</button></a><button class="g" onclick="out()">Sair</button></div>
   <h2>Categorias <button id="nc">+ Categoria</button></h2>
   ${cats.map(c=>`<div class="it ${c.active?'':'off'}"><span>${esc(c.icon||'')} ${esc(c.name)} <small>#${c.position}</small></span><span class="row"><button class="g" data-ec="${c.id}">Editar</button><button class="r" data-dc="${c.id}">Excluir</button></span></div>`).join('')}
   <h2>Produtos <button id="np">+ Produto</button></h2>
   ${cats.map(c=>{const l=prods.filter(p=>p.category_id===c.id);return l.length?`<div class="cat">${esc(c.icon||'')} ${esc(c.name)}</div>`+l.map(p=>`<div class="it ${p.active?'':'off'}"><span>${p.featured?'⭐ ':''}${esc(p.name)} <small>${money(p.price)}${(p.options||[]).length?' · '+p.options.length+' sub':''}</small></span><span class="row"><button class="g" data-ep="${p.id}">Editar</button><button class="r" data-dp="${p.id}">Excluir</button></span></div>`).join(''):''}).join('')}`;
   if($('#bs'))$('#bs').onchange=e=>{boat=boats.find(b=>b.id==e.target.value);load()};
-  $('#eb').onclick=()=>form('Dados do barco',[['name','Nome','text'],['whatsapp','WhatsApp (só números, com 55)','text'],['instagram','Instagram (sem @)','text'],['cover_url','Foto de capa','img']],boat,async v=>{await sb.from('boats').update(v).eq('id',boat.id).then(chk);Object.assign(boat,v)});
+  $('#eb').onclick=()=>form('Personalizar cardápio e capa',[
+    ['name','Nome do barco','text'],
+    ['whatsapp','WhatsApp (só números, com 55)','text'],
+    ['instagram','Instagram (sem @)','text'],
+    ['cover_url','Imagem de fundo da capa','img'],
+    ['cover_height','Altura da capa (px) — 180 a 1200','number'],
+    ['cover_width','Largura da capa (%) — 40 a 100','number'],
+    ['cover_zoom','Zoom da imagem (%) — 50 a 200','number'],
+    ['cover_x','Posição horizontal (%) — 0 esquerda / 100 direita','number'],
+    ['cover_y','Posição vertical (%) — 0 topo / 100 base','number'],
+    ['cover_overlay','Escurecimento (%) — 0 a 90','number']
+  ],{cover_height:480,cover_width:100,cover_zoom:100,cover_x:50,cover_y:50,cover_overlay:45,...boat},async v=>{
+    const clamp=(n,min,max,def)=>Math.max(min,Math.min(max,Number.isFinite(Number(n))?Number(n):def));
+    v.cover_height=clamp(v.cover_height,180,1200,480);
+    v.cover_width=clamp(v.cover_width,40,100,100);
+    v.cover_zoom=clamp(v.cover_zoom,50,200,100);
+    v.cover_x=clamp(v.cover_x,0,100,50);
+    v.cover_y=clamp(v.cover_y,0,100,50);
+    v.cover_overlay=clamp(v.cover_overlay,0,90,45);
+    chk(await sb.from('boats').update(v).eq('id',boat.id));
+    Object.assign(boat,v);
+  });
   $('#nc').onclick=()=>editCat({});$('#np').onclick=()=>editProd({});
 }
 async function tl(t,l){try{const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl='+l+'&dt=t&q='+encodeURIComponent(t));const d=await r.json();return d[0].map(x=>x[0]||'').join('')||null}catch(e){return null}}

@@ -32,6 +32,7 @@ O bloqueio é feito no banco de dados (Supabase RLS), então um login não conse
 | `config.js` | Endereço e chave pública (anon) do Supabase |
 | `_redirects` | Faz funcionar `/foz`, `/itapema`, `/floripa` e `/admin` no Netlify |
 | `migracao.sql` | Prepara o banco (rodar uma vez no Supabase) |
+| `personalizacao-banner.sql` | Adiciona os controles de tamanho e aparência da capa em um banco já existente |
 | `images/` | Imagens do site, como a capa do Foz (`images/barco-kattamaram.jpg`) |
 
 ## Instalação
@@ -64,6 +65,7 @@ Suba `index.html`, `admin.html`, `config.js`, `_redirects` e a pasta `images/`.
 - **Categorias:** nome, ícone (emoji), ordem e se aparece no cardápio.
 - **Produtos:** categoria, nome, descrição, preço, foto, ordem, destaque (⭐) e se aparece no cardápio.
 - **Subprodutos:** dentro de cada produto, com nome e valor (tamanhos, extras, sabores).
+- **Personalização da capa:** imagem, altura (180–1200 px), largura (40–100%), zoom (50–200%), posição horizontal e vertical (0–100%) e escurecimento (0–90%). As configurações são individuais por barco.
 - **Dados do barco:** nome, foto de capa, WhatsApp (só números, com 55) e Instagram (sem @).
 - **Traduções:** deixe os campos de English e Español vazios e o painel traduz sozinho ao salvar. Se preferir, preencha à mão.
 - **Fotos:** enviadas direto pelo painel e guardadas no bucket `product-images`.
@@ -82,3 +84,9 @@ Suba `index.html`, `admin.html`, `config.js`, `_redirects` e a pasta `images/`.
 - Durante o período de teste, o painel antigo deixa de salvar (as regras mudaram). Use o novo `/admin`.
 - A chave em `config.js` é a chave pública (anon) do Supabase e pode ficar no site. Nunca coloque a chave `service_role` nos arquivos.
 - Todos os produtos pré-existentes ficam no Foz. Itapema e Floripa começam vazios e são cadastrados pelo painel.
+
+## Atualização: controles da imagem de capa
+
+Se você já executou a `migracao.sql` anteriormente, **não precisa executar a migração inteira novamente**. Abra o Supabase → SQL Editor e execute somente `personalizacao-banner.sql`. Depois publique os arquivos atualizados no Netlify.
+
+No painel `/admin`, clique em **Dados do barco** para encontrar os controles de imagem. As alterações são salvas no registro do barco selecionado.

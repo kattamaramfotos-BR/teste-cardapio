@@ -7,8 +7,20 @@ create table if not exists boats (
   name text not null,
   slug text not null unique,
   whatsapp text, instagram text, cover_url text,
+  cover_height integer not null default 480,
+  cover_width integer not null default 100,
+  cover_zoom integer not null default 100,
+  cover_x integer not null default 50,
+  cover_y integer not null default 50,
+  cover_overlay integer not null default 45,
   active boolean default true
 );
+alter table boats add column if not exists cover_height integer not null default 480;
+alter table boats add column if not exists cover_width integer not null default 100;
+alter table boats add column if not exists cover_zoom integer not null default 100;
+alter table boats add column if not exists cover_x integer not null default 50;
+alter table boats add column if not exists cover_y integer not null default 50;
+alter table boats add column if not exists cover_overlay integer not null default 45;
 insert into boats (name, slug, whatsapp, instagram, cover_url) values
   ('Kattamaram II • Foz do Iguaçu', 'foz', '5545984144800', 'kattamaramfoz', '/images/barco-kattamaram.jpg'),
   ('Catamarã Itapema', 'itapema', null, null, null),
