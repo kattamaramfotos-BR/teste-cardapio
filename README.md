@@ -90,3 +90,7 @@ Suba `index.html`, `admin.html`, `config.js`, `_redirects` e a pasta `images/`.
 Se você já executou a `migracao.sql` anteriormente, **não precisa executar a migração inteira novamente**. Abra o Supabase → SQL Editor e execute somente `personalizacao-banner.sql`. Depois publique os arquivos atualizados no Netlify.
 
 No painel `/admin`, clique em **Dados do barco** para encontrar os controles de imagem. As alterações são salvas no registro do barco selecionado.
+
+## Editor visual da capa (prévia ao vivo)
+
+No painel administrativo, clique em **Personalizar capa**. A janela mostra uma prévia da capa enquanto você ajusta altura, largura, zoom, posição e escurecimento. Também é possível arrastar a própria imagem com o mouse (ou toque em telas sensíveis) para reposicionar o enquadramento. As mudanças só são gravadas no Supabase quando clicar em **Salvar alterações**; Cancelar descarta a edição atual.

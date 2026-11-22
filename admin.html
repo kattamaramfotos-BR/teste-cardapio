@@ -24,6 +24,29 @@ label.chk{display:flex;gap:8px;align-items:center}label.chk input{width:auto;mar
 .orow{display:grid;grid-template-columns:1fr 1fr 1fr 80px 36px;gap:4px;margin-bottom:6px}.orow input{padding:6px;min-width:0}
 .orow button{padding:6px}
 #login{max-width:340px;margin:18vh auto;display:grid;gap:10px}
+
+/* Editor visual da capa com prévia ao vivo e arraste */
+.cover-editor{width:min(1000px,96vw);max-width:1000px;padding:18px}
+.cover-editor h3{margin:0 0 12px}
+.cover-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr);gap:16px}
+.cover-preview-wrap{min-width:0}
+.cover-preview{height:clamp(220px,38vw,420px);width:100%;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#0d2740 center/cover no-repeat;cursor:grab;touch-action:none;user-select:none}
+.cover-preview.dragging{cursor:grabbing}
+.cover-preview:after{content:"";position:absolute;inset:0;background:linear-gradient(transparent,rgba(7,26,43,var(--overlay,.45)));pointer-events:none}
+.cover-preview-content{position:absolute;z-index:1;left:7%;bottom:7%;pointer-events:none;text-shadow:0 2px 8px #0009}
+.cover-preview-content h1{font:italic clamp(28px,4vw,48px) Georgia,serif;margin:0;color:#fff}
+.cover-preview-content p{margin:4px 0 10px;color:#c9d8e6}
+.cover-preview-content span{display:inline-block;border:1px solid #ffffff70;border-radius:20px;padding:4px 10px;margin-right:6px;font:13px system-ui;color:#fff}
+.cover-controls{max-height:65vh;overflow:auto;padding-right:4px}
+.cover-controls label{margin:8px 0 12px}
+.cover-controls input[type=range]{padding:0;accent-color:var(--ac)}
+.cover-controls input[type=file]{font-size:12px}
+.cover-control-line{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.cover-control-line output{color:var(--ac);font-variant-numeric:tabular-nums}
+.cover-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+.cover-hint{font-size:12px;color:var(--mut);margin:8px 0}
+@media(max-width:720px){.cover-layout{grid-template-columns:1fr}.cover-controls{max-height:none}.cover-preview{height:240px}}
+
 </style></head><body><div id="app"></div><dialog id="dlg"></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="/config.js"></script>
@@ -64,33 +87,77 @@ function render(){
   <h2>Produtos <button id="np">+ Produto</button></h2>
   ${cats.map(c=>{const l=prods.filter(p=>p.category_id===c.id);return l.length?`<div class="cat">${esc(c.icon||'')} ${esc(c.name)}</div>`+l.map(p=>`<div class="it ${p.active?'':'off'}"><span>${p.featured?'⭐ ':''}${esc(p.name)} <small>${money(p.price)}${(p.options||[]).length?' · '+p.options.length+' sub':''}</small></span><span class="row"><button class="g" data-ep="${p.id}">Editar</button><button class="r" data-dp="${p.id}">Excluir</button></span></div>`).join(''):''}).join('')}`;
   if($('#bs'))$('#bs').onchange=e=>{boat=boats.find(b=>b.id==e.target.value);load()};
-  $('#eb').onclick=()=>form('Personalizar cardápio e capa',[
-    ['name','Nome do barco','text'],
-    ['whatsapp','WhatsApp (só números, com 55)','text'],
-    ['instagram','Instagram (sem @)','text'],
-    ['cover_url','Imagem de fundo da capa','img'],
-    ['cover_height','Altura da capa (px) — 180 a 1200','number'],
-    ['cover_width','Largura da capa (%) — 40 a 100','number'],
-    ['cover_zoom','Zoom da imagem (%) — 50 a 200','number'],
-    ['cover_x','Posição horizontal (%) — 0 esquerda / 100 direita','number'],
-    ['cover_y','Posição vertical (%) — 0 topo / 100 base','number'],
-    ['cover_overlay','Escurecimento (%) — 0 a 90','number']
-  ],{cover_height:480,cover_width:100,cover_zoom:100,cover_x:50,cover_y:50,cover_overlay:45,...boat},async v=>{
-    const clamp=(n,min,max,def)=>Math.max(min,Math.min(max,Number.isFinite(Number(n))?Number(n):def));
-    v.cover_height=clamp(v.cover_height,180,1200,480);
-    v.cover_width=clamp(v.cover_width,40,100,100);
-    v.cover_zoom=clamp(v.cover_zoom,50,200,100);
-    v.cover_x=clamp(v.cover_x,0,100,50);
-    v.cover_y=clamp(v.cover_y,0,100,50);
-    v.cover_overlay=clamp(v.cover_overlay,0,90,45);
-    chk(await sb.from('boats').update(v).eq('id',boat.id));
-    Object.assign(boat,v);
-  });
+  $('#eb').onclick=()=>openCoverEditor();
   $('#nc').onclick=()=>editCat({});$('#np').onclick=()=>editProd({});
 }
 async function tl(t,l){try{const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl='+l+'&dt=t&q='+encodeURIComponent(t));const d=await r.json();return d[0].map(x=>x[0]||'').join('')||null}catch(e){return null}}
 const chk=r=>{if(r.error)throw r.error};
 async function up(f){const path=`${boat.slug}/${Date.now()}-${f.name.replace(/[^\w.]/g,'_')}`;const r=await sb.storage.from('product-images').upload(path,f);if(r.error)throw r.error;return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}
+
+async function openCoverEditor(){
+  const d=$('#dlg');
+  const initial={cover_height:480,cover_width:100,cover_zoom:100,cover_x:50,cover_y:50,cover_overlay:45,...boat};
+  let draft={...initial};
+  let localImage=null;
+  const clamp=(v,min,max,def)=>Math.max(min,Math.min(max,Number.isFinite(Number(v))?Number(v):def));
+  const previewUrl=()=>localImage||draft.cover_url||'';
+  d.className='cover-editor';
+  d.innerHTML=`<h3>Personalizar capa — ${esc(boat.name)}</h3>
+    <div class="cover-layout">
+      <div class="cover-preview-wrap">
+        <div id="coverPreview" class="cover-preview" aria-label="Prévia da capa; arraste para reposicionar a imagem">
+          <div class="cover-preview-content"><h1>Menú a bordo</h1><p>${esc(boat.name)}</p><span>Instagram</span><span>WhatsApp</span></div>
+        </div>
+        <p class="cover-hint">Dica: clique na imagem e arraste com o mouse para ajustar o enquadramento. A prévia acompanha as alterações em tempo real.</p>
+      </div>
+      <div class="cover-controls">
+        <label>Trocar imagem de fundo<input id="coverFile" type="file" accept="image/*"></label>
+        <label><span class="cover-control-line"><span>Altura da capa</span><output id="outHeight"></output></span><input id="coverHeight" type="range" min="180" max="1200" step="10"></label>
+        <label><span class="cover-control-line"><span>Largura da capa</span><output id="outWidth"></output></span><input id="coverWidth" type="range" min="40" max="100" step="1"></label>
+        <label><span class="cover-control-line"><span>Zoom da imagem</span><output id="outZoom"></output></span><input id="coverZoom" type="range" min="50" max="250" step="1"></label>
+        <label><span class="cover-control-line"><span>Posição horizontal</span><output id="outX"></output></span><input id="coverX" type="range" min="0" max="100" step="1"></label>
+        <label><span class="cover-control-line"><span>Posição vertical</span><output id="outY"></output></span><input id="coverY" type="range" min="0" max="100" step="1"></label>
+        <label><span class="cover-control-line"><span>Escurecimento</span><output id="outOverlay"></output></span><input id="coverOverlay" type="range" min="0" max="90" step="1"></label>
+      </div>
+    </div>
+    <div class="cover-actions"><button class="g" id="coverCancel">Cancelar</button><div class="row"><button class="g" id="coverReset">Restaurar padrão</button><button id="coverSave">Salvar alterações</button></div></div>`;
+  d.showModal();
+  const preview=$('#coverPreview');
+  const fields={cover_height:'coverHeight',cover_width:'coverWidth',cover_zoom:'coverZoom',cover_x:'coverX',cover_y:'coverY',cover_overlay:'coverOverlay'};
+  const outputs={cover_height:'outHeight',cover_width:'outWidth',cover_zoom:'outZoom',cover_x:'outX',cover_y:'outY',cover_overlay:'outOverlay'};
+  function paint(){
+    draft.cover_height=clamp(draft.cover_height,180,1200,480);draft.cover_width=clamp(draft.cover_width,40,100,100);
+    draft.cover_zoom=clamp(draft.cover_zoom,50,250,100);draft.cover_x=clamp(draft.cover_x,0,100,50);
+    draft.cover_y=clamp(draft.cover_y,0,100,50);draft.cover_overlay=clamp(draft.cover_overlay,0,90,45);
+    for(const [key,id] of Object.entries(fields)){$('#'+id).value=draft[key];$('#'+outputs[key]).textContent=key==='cover_height'?draft[key]+' px':key==='cover_width'?draft[key]+'%':draft[key]+'%'}
+    const url=previewUrl();
+    preview.style.height=`${Math.min(420,Math.max(220,draft.cover_height))}px`;
+    preview.style.width=draft.cover_width+'%';preview.style.margin='0 auto';
+    preview.style.backgroundImage=url?`url("${url.replace(/"/g,'%22')}")`:'none';
+    preview.style.backgroundSize=`${draft.cover_zoom}% auto`;
+    preview.style.backgroundPosition=`${draft.cover_x}% ${draft.cover_y}%`;
+    preview.style.setProperty('--overlay',String(draft.cover_overlay/100));
+  }
+  for(const [key,id] of Object.entries(fields))$('#'+id).addEventListener('input',e=>{draft[key]=Number(e.target.value);paint()});
+  $('#coverFile').onchange=e=>{const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){alert('Selecione um arquivo de imagem.');return}if(localImage)URL.revokeObjectURL(localImage);localImage=URL.createObjectURL(file);paint()};
+  let dragging=false,lastX=0,lastY=0;
+  preview.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;preview.classList.add('dragging');preview.setPointerCapture(e.pointerId)});
+  preview.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;draft.cover_x=clamp(draft.cover_x-dx/preview.clientWidth*100,0,100,50);draft.cover_y=clamp(draft.cover_y-dy/preview.clientHeight*100,0,100,50);paint()});
+  const stopDrag=()=>{dragging=false;preview.classList.remove('dragging')};preview.addEventListener('pointerup',stopDrag);preview.addEventListener('pointercancel',stopDrag);
+  $('#coverReset').onclick=()=>{draft={...initial,cover_height:480,cover_width:100,cover_zoom:100,cover_x:50,cover_y:50,cover_overlay:45};localImage=null;$('#coverFile').value='';paint()};
+  $('#coverCancel').onclick=()=>{if(localImage)URL.revokeObjectURL(localImage);d.close();d.className=''};
+  $('#coverSave').onclick=async()=>{
+    const btn=$('#coverSave');btn.disabled=true;btn.textContent='Salvando…';
+    try{
+      let cover_url=draft.cover_url||null;
+      const file=$('#coverFile').files?.[0];if(file)cover_url=await up(file);
+      const payload={cover_url,cover_height:draft.cover_height,cover_width:draft.cover_width,cover_zoom:draft.cover_zoom,cover_x:draft.cover_x,cover_y:draft.cover_y,cover_overlay:draft.cover_overlay};
+      chk(await sb.from('boats').update(payload).eq('id',boat.id));Object.assign(boat,payload);
+      if(localImage)URL.revokeObjectURL(localImage);d.close();d.className='';load();
+    }catch(err){alert('Não foi possível salvar: '+(err.message||err));btn.disabled=false;btn.textContent='Salvar alterações'}
+  };
+  paint();
+}
 
 function form(title,fields,v,save,extra='',after){
   const d=$('#dlg'),g=k=>k.startsWith('tr.')?v.translations?.[k.split('.')[1]]?.[k.split('.')[2]]:v[k];
