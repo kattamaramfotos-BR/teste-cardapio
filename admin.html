@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Painel do cardápio</title>
+<style>
+:root{--bg:#071a2b;--card:#0d2740;--line:#1b3d5c;--tx:#eef4f8;--mut:#9db4c6;--ac:#f0c27a}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+#app{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+input,select,textarea,button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+button{cursor:pointer;width:auto;background:var(--ac);color:#071a2b;border:0;font-weight:600}
+button.g{background:transparent;color:var(--tx);border:1px solid var(--line)}
+button.r{background:transparent;color:#ff8a80;border:1px solid #5a2b2b}
+h2{margin:26px 0 8px;font-size:18px;display:flex;justify-content:space-between;align-items:center}
+.top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.top select{flex:1;min-width:160px}
+.row{display:flex;gap:8px;align-items:center}.sp{justify-content:space-between}
+.it{background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.it small{color:var(--mut)}.off{opacity:.5}
+.cat{color:var(--ac);margin:14px 0 6px;font-weight:600}
+dialog{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:14px;width:min(520px,94vw);max-height:92vh;padding:16px}
+dialog::backdrop{background:#000a}
+label{display:block;margin:10px 0;color:var(--mut);font-size:13px}label input,label select,label textarea{margin-top:4px;color:var(--tx)}
+label.chk{display:flex;gap:8px;align-items:center}label.chk input{width:auto;margin:0}
+.th{height:60px;margin-top:6px;border-radius:6px}
+.orow{display:grid;grid-template-columns:1fr 1fr 1fr 80px 36px;gap:4px;margin-bottom:6px}.orow input{padding:6px;min-width:0}
+.orow button{padding:6px}
+#login{max-width:340px;margin:18vh auto;display:grid;gap:10px}
+</style></head><body><div id="app"></div><dialog id="dlg"></dialog>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="/config.js"></script>
+<script>
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>v==null?'':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+let me,boats=[],boat,cats=[],prods=[];
+
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)return login();
+  const {data:p}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+  if(!p){app.innerHTML='<p>Seu usuário ainda não tem acesso. Peça ao administrador.</p><button class="g" onclick="out()">Sair</button>';return}
+  me=p;
+  let q=sb.from('boats').select('*').order('id');if(p.role!=='admin')q=q.eq('id',p.boat_id);
+  boats=(await q).data||[];boat=boats[0];
+  if(!boat){app.innerHTML='<p>Nenhum barco vinculado a este usuário.</p>';return}
+  load();
+}
+function login(){
+  app.innerHTML=`<form id="login"><h2>Painel do cardápio</h2><input id="em" type="email" placeholder="E-mail" required><input id="pw" type="password" placeholder="Senha" required><button>Entrar</button><small id="er" style="color:#ff8a80"></small></form>`;
+  $('#login').onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});error?$('#er').textContent='E-mail ou senha incorretos.':init()};
+}
+async function out(){await sb.auth.signOut();login()}
+async function load(){
+  const id=boat.id;
+  const [c,p]=await Promise.all([sb.from('categories').select('*').eq('boat_id',id).order('position'),sb.from('products').select('*').eq('boat_id',id).order('position')]);
+  cats=c.data||[];prods=p.data||[];
+  render();
+}
+function render(){
+  app.innerHTML=`<div class="top">${me.role==='admin'?`<select id="bs">${boats.map(b=>`<option value="${b.id}" ${b.id===boat.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select>`:`<b style="flex:1">${esc(boat.name)}</b>`}
+  <button class="g" id="eb">Dados do barco</button><a href="/${esc(boat.slug)}" target="_blank"><button class="g">Ver cardápio</button></a><button class="g" onclick="out()">Sair</button></div>
+  <h2>Categorias <button id="nc">+ Categoria</button></h2>
+  ${cats.map(c=>`<div class="it ${c.active?'':'off'}"><span>${esc(c.icon||'')} ${esc(c.name)} <small>#${c.position}</small></span><span class="row"><button class="g" data-ec="${c.id}">Editar</button><button class="r" data-dc="${c.id}">Excluir</button></span></div>`).join('')}
+  <h2>Produtos <button id="np">+ Produto</button></h2>
+  ${cats.map(c=>{const l=prods.filter(p=>p.category_id===c.id);return l.length?`<div class="cat">${esc(c.icon||'')} ${esc(c.name)}</div>`+l.map(p=>`<div class="it ${p.active?'':'off'}"><span>${p.featured?'⭐ ':''}${esc(p.name)} <small>${money(p.price)}${(p.options||[]).length?' · '+p.options.length+' sub':''}</small></span><span class="row"><button class="g" data-ep="${p.id}">Editar</button><button class="r" data-dp="${p.id}">Excluir</button></span></div>`).join(''):''}).join('')}`;
+  if($('#bs'))$('#bs').onchange=e=>{boat=boats.find(b=>b.id==e.target.value);load()};
+  $('#eb').onclick=()=>form('Dados do barco',[['name','Nome','text'],['whatsapp','WhatsApp (só números, com 55)','text'],['instagram','Instagram (sem @)','text'],['cover_url','Foto de capa','img']],boat,async v=>{await sb.from('boats').update(v).eq('id',boat.id).then(chk);Object.assign(boat,v)});
+  $('#nc').onclick=()=>editCat({});$('#np').onclick=()=>editProd({});
+}
+async function tl(t,l){try{const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl='+l+'&dt=t&q='+encodeURIComponent(t));const d=await r.json();return d[0].map(x=>x[0]||'').join('')||null}catch(e){return null}}
+const chk=r=>{if(r.error)throw r.error};
+async function up(f){const path=`${boat.slug}/${Date.now()}-${f.name.replace(/[^\w.]/g,'_')}`;const r=await sb.storage.from('product-images').upload(path,f);if(r.error)throw r.error;return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}
+
+function form(title,fields,v,save,extra='',after){
+  const d=$('#dlg'),g=k=>k.startsWith('tr.')?v.translations?.[k.split('.')[1]]?.[k.split('.')[2]]:g(k);
+  d.innerHTML=`<h3>${title}</h3>${fields.map(([k,l,t])=>t==='check'?`<label class="chk"><input type="checkbox" name="${k}" ${g(k)??false?'checked':''}> ${l}</label>`:t==='area'?`<label>${l}<textarea name="${k}" rows="3">${esc(g(k))}</textarea></label>`:t==='img'?`<label>${l}<input type="file" accept="image/*" name="${k}">${g(k)?`<img class="th" src="${esc(g(k))}">`:''}</label>`:t==='cat'?`<label>${l}<select name="${k}">${cats.map(c=>`<option value="${c.id}" ${String(c.id)===String(g(k))?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:`<label>${l}<input name="${k}" type="${t}" step="any" value="${esc(g(k))}"></label>`).join('')}${extra}<div class="row sp"><button class="g" id="x">Cancelar</button><button id="ok">Salvar</button></div>`;
+  d.showModal();if(after)after();
+  $('#x').onclick=()=>d.close();
+  $('#ok').onclick=async()=>{
+    const btn=$('#ok');btn.disabled=true;btn.textContent='Salvando…';
+    try{
+      const o={};
+      for(const [k,,t] of fields){const el=d.querySelector(`[name="${k}"]`);
+        if(k.startsWith('tr.')){const [,l,f]=k.split('.');o.translations??=JSON.parse(JSON.stringify(v.translations||{}));(o.translations[l]??={})[f]=el.value.trim()||null;continue}
+        if(t==='check')o[k]=el.checked;
+        else if(t==='img')o[k]=el.files[0]?await up(el.files[0]):(v[k]||null);
+        else if(t==='number')o[k]=el.value===''?null:+el.value;
+        else if(t==='cat')o[k]=el.value;
+        else o[k]=el.value.trim()||null}
+      if(o.translations)for(const l of ['en','es'])for(const f of Object.keys(o.translations[l]||{}))if(!o.translations[l][f]&&o[f])o.translations[l][f]=await tl(o[f],l);
+      await save(o);d.close();load();
+    }catch(e){alert('Erro: '+(e.message||e));btn.disabled=false;btn.textContent='Salvar'}
+  };
+}
+const del=(t,id)=>confirm('Excluir? Isso não pode ser desfeito.')&&sb.from(t).delete().eq('id',id).then(r=>{r.error?alert(r.error.message):load()});
+
+function editCat(c){
+  form(c.id?'Editar categoria':'Nova categoria',[['name','Nome (PT)','text'],['tr.en.name','Name (EN) — vazio: traduz sozinho','text'],['tr.es.name','Nombre (ES)','text'],['icon','Ícone (emoji)','text'],['position','Ordem','number'],['active','Visível no cardápio','check']],{active:true,position:cats.length+1,...c},
+    async v=>{v.boat_id=boat.id;chk(await(c.id?sb.from('categories').update(v).eq('id',c.id):sb.from('categories').insert(v)))});
+}
+const orow=(o,i)=>`<div class="orow" data-i="${i}"><input placeholder="Nome" value="${esc(o.name)}"><input placeholder="Name (EN)" value="${esc(o.translations?.en?.name)}"><input placeholder="Nombre (ES)" value="${esc(o.translations?.es?.name)}"><input type="number" step="any" placeholder="R$" value="${o.price??''}"><button class="r" type="button">✕</button></div>`;
+function editProd(p){
+  if(!cats.length)return alert('Crie uma categoria primeiro.');
+  const mine=Array.isArray(p.options)?p.options:[];
+  form(p.id?'Editar produto':'Novo produto',[['category_id','Categoria','cat'],['name','Nome (PT)','text'],['tr.en.name','Name (EN) — vazio: traduz sozinho','text'],['tr.es.name','Nombre (ES)','text'],['description','Descrição (PT)','area'],['tr.en.description','Description (EN)','area'],['tr.es.description','Descripción (ES)','area'],['price','Preço (R$)','number'],['image_url','Foto','img'],['position','Ordem','number'],['featured','Destaque','check'],['active','Visível no cardápio','check']],
+    {active:true,position:prods.length+1,category_id:cats[0].id,...p},
+    async v=>{
+      v.boat_id=boat.id;v.updated_at=new Date().toISOString();
+      const old=Array.isArray(p.options)?p.options:[];v.options=[];
+      for(const r of document.querySelectorAll('#ol .orow')){
+        const [x,y,z,w]=r.querySelectorAll('input'),n=x.value.trim();if(!n)continue;
+        const base=old[r.dataset.i]||{},bt=base.translations||{};
+        v.options.push({...base,name:n,price:w.value===''?0:+w.value,translations:{...bt,en:{...bt.en,name:y.value.trim()||await tl(n,'en')},es:{...bt.es,name:z.value.trim()||await tl(n,'es')}}});
+      }
+      chk(await(p.id?sb.from('products').update(v).eq('id',p.id):sb.from('products').insert(v)));
+    },
+    `<h4>Subprodutos (tamanhos, extras, sabores)</h4><div id="ol">${mine.map(orow).join('')}</div><button class="g" type="button" id="ao">+ Subproduto</button>`,
+    ()=>{const ol=$('#ol');$('#ao').onclick=()=>ol.insertAdjacentHTML('beforeend',orow({}));ol.onclick=e=>{if(e.target.tagName==='BUTTON')e.target.closest('.orow').remove()}});
+}
+app.onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+  if(d.ec)editCat(cats.find(c=>c.id==d.ec));if(d.dc)del('categories',d.dc);
+  if(d.ep)editProd(prods.find(p=>p.id==d.ep));if(d.dp)del('products',d.dp)};
+init();
+</script></body></html>
