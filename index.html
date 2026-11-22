@@ -35,7 +35,7 @@ h2{font-size:24px;font-weight:400;margin:28px 0 10px;border-bottom:1px solid var
 <script src="/config.js"></script>
 <script>
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const T={pt:{t:'Cardápio',s:'a bordo',f:'Destaques',n:'Cardápio não encontrado.'},en:{t:'Menu',s:'on board',f:'Highlights',n:'Menu not found.'},es:{t:'Menú',s:'a bordo',f:'Destacados',n:'Menú no encontrado.'}};
+const T={pt:{t:'Cardápio',s:'a bordo',f:'Destaques',n:'Cardápio não encontrado.',e:'Nenhum produto disponível nesta categoria.'},en:{t:'Menu',s:'on board',f:'Highlights',n:'Menu not found.',e:'No products available in this category.'},es:{t:'Menú',s:'a bordo',f:'Destacados',n:'Menú no encontrado.',e:'No hay productos disponibles en esta categoría.'}};
 let lang='pt',D=null;
 try{lang=localStorage.getItem('lang')||'pt'}catch(e){}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -59,11 +59,11 @@ function render(){
   const {boat,cats,prods}=D,fe=prods.filter(p=>p.featured);
   document.title=boat.name+' — '+t.t;$('#bn').textContent=boat.name.split('•')[0].trim().toUpperCase();
   const links=[boat.instagram&&`<a href="https://instagram.com/${esc(boat.instagram)}">Instagram</a>`,boat.whatsapp&&`<a href="https://wa.me/${esc(boat.whatsapp)}">WhatsApp</a>`].filter(Boolean).join('');
-  const used=cats.filter(c=>prods.some(p=>p.category_id===c.id));
+  const used=cats;
   $('#app').innerHTML=`<div class="hero" style="${boat.cover_url?`background-image:url('${esc(boat.cover_url)}')`:''}"><div><main><h1>${t.t} <em>${t.s}</em></h1><p class="sub">${esc(boat.name)}</p><div class="links">${links}</div></main></div></div>
   <main><nav>${used.map(c=>`<a href="#c${c.id}">${esc(c.icon||'')} ${esc(tr(c,'name'))}</a>`).join('')}</nav>
   ${fe.length?`<h2>${t.f}</h2><div class="feat">${fe.map(card).join('')}</div>`:''}
-  ${used.map(c=>`<h2 id="c${c.id}">${esc(c.icon||'')} ${esc(tr(c,'name'))}</h2>${prods.filter(p=>p.category_id===c.id).map(card).join('')}`).join('')}</main>`;
+  ${used.map(c=>`<h2 id="c${c.id}">${esc(c.icon||'')} ${esc(tr(c,'name'))}</h2>${prods.filter(p=>p.category_id===c.id).map(card).join('')||`<p class="sub">${t.e}</p>`}`).join('')}</main>`;
 }
 function $(s){return document.querySelector(s)}
 $('#lg').onchange=e=>{lang=e.target.value;try{localStorage.setItem('lang',lang)}catch(x){}render()};
