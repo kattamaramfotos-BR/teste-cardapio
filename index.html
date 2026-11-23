@@ -9,9 +9,8 @@ body{margin:0;font:16px/1.5 Georgia,'Times New Roman',serif;background:var(--bg)
 header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:10px 16px}
 header b{font-size:18px;letter-spacing:.04em}
 select{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
-.hero{height:var(--hero-h,480px);width:var(--hero-w,100%);margin:0 auto;background-color:var(--card);background-repeat:no-repeat;background-size:var(--hero-zoom,100%) auto;background-position:var(--hero-x,50%) var(--hero-y,50%);display:flex;align-items:flex-end;overflow:hidden}
-.hero>div{width:100%;height:100%;padding:60px 16px 18px;background:linear-gradient(transparent,rgba(7,26,43,var(--hero-overlay,.45)));display:flex;align-items:flex-end}
-@media(max-width:700px){.hero{height:min(var(--hero-h,480px),65vh);width:100%;background-size:auto var(--hero-zoom,100%)} }
+.hero{min-height:240px;background:var(--card) center/cover;display:flex;align-items:flex-end}
+.hero div{width:100%;padding:60px 16px 18px;background:linear-gradient(transparent,var(--bg))}
 h1{margin:0;font-size:clamp(34px,8vw,56px);font-weight:400;font-style:italic}
 .sub{color:var(--mut);margin:4px 0 12px}
 .links a{display:inline-block;margin:0 8px 8px 0;padding:6px 12px;border:1px solid var(--line);border-radius:20px;color:var(--tx);text-decoration:none;font:14px system-ui}
@@ -33,9 +32,21 @@ h2{font-size:24px;font-weight:400;margin:28px 0 10px;border-bottom:1px solid var
 .cat.on{border-color:var(--ac)}
 .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px}.list .p,.feat .p{margin-bottom:0}
 @media(max-width:700px){.cats{grid-template-columns:repeat(2,1fr)}.list{grid-template-columns:1fr}}
+.p{cursor:pointer}.p p{white-space:pre-line}
+#pm{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:16px;padding:0;width:min(520px,94vw);max-height:90vh;overflow:auto}
+#pm::backdrop{background:#000c}
+#pm .x{position:absolute;top:10px;right:10px;z-index:2;width:36px;height:36px;border-radius:50%;border:0;background:#000a;color:#fff;font-size:18px;cursor:pointer}
+#pm .mi{width:100%;max-height:340px;object-fit:cover;display:block}
+#pm .pb{padding:16px 18px 20px}#pm h3{margin:0 0 6px;font-size:24px}
+#pm .ds{white-space:pre-line;color:var(--mut);margin:0 0 10px}
+#pm .pr{font-size:22px}
+#pm .op{display:flex;gap:10px;align-items:center;border-top:1px dashed var(--line);padding:10px 0}
+#pm .op img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
+#pm .op div{flex:1}#pm .op p{margin:2px 0 0;font-size:13px;color:var(--mut);white-space:pre-line}
 .msg{padding:60px 16px;text-align:center;color:var(--mut)}
 </style></head><body>
 <header><b id="bn">…</b><select id="lg"><option value="pt">🇧🇷 PT-BR</option><option value="en">🇺🇸 English</option><option value="es">🇪🇸 Español</option></select></header>
+<dialog id="pm"></dialog>
 <div id="app"><div class="msg">…</div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="/config.js"></script>
@@ -58,7 +69,7 @@ async function load(){
     sb.from('products').select('*').eq('boat_id',boat.id).eq('active',true).order('position')]);
   D={boat,cats:c.data||[],prods:p.data||[]};render();
 }
-const card=p=>`<div class="p">${p.image_url?`<img src="${esc(p.image_url)}" alt="" loading="lazy">`:''}<div style="flex:1"><h3>${esc(tr(p,'name'))}</h3>${p.description?`<p>${esc(tr(p,'description'))}</p>`:''}${p.price!=null?`<div class="pr">${money(p.price)}</div>`:''}${(Array.isArray(p.options)?p.options:[]).map(o=>`<div class="o"><span>${esc(tr(o,'name'))}</span><span>${o.price>0?'+ '+money(o.price):''}</span></div>`).join('')}</div></div>`;
+const card=p=>`<div class="p" data-p="${esc(p.id)}">${p.image_url?`<img src="${esc(p.image_url)}" alt="" loading="lazy">`:''}<div style="flex:1"><h3>${esc(tr(p,'name'))}</h3>${p.description?`<p>${esc(tr(p,'description'))}</p>`:''}${p.price!=null?`<div class="pr">${money(p.price)}</div>`:''}${(Array.isArray(p.options)?p.options:[]).map(o=>`<div class="o"><span>${esc(tr(o,'name'))}</span><span>${o.price>0?'+ '+money(o.price):''}</span></div>`).join('')}</div></div>`;
 let sel=null;
 function render(){
   const t=T[lang];document.documentElement.lang=lang==='pt'?'pt-BR':lang;$('#lg').value=lang;
@@ -68,15 +79,19 @@ function render(){
   const cur=cats.find(c=>c.id===sel);
   document.title=boat.name+' — '+t.t;$('#bn').textContent=boat.name.split('•')[0].trim().toUpperCase();
   const links=[boat.instagram&&`<a href="https://instagram.com/${esc(boat.instagram)}">Instagram</a>`,boat.whatsapp&&`<a href="https://wa.me/${esc(boat.whatsapp)}">WhatsApp</a>`].filter(Boolean).join('');
-  const cap=(v,min,max,def)=>Math.max(min,Math.min(max,Number.isFinite(Number(v))?Number(v):def));
-  const heroStyle=`--hero-h:${cap(boat.cover_height,180,1200,480)}px;--hero-w:${cap(boat.cover_width,40,100,100)}%;--hero-zoom:${cap(boat.cover_zoom,50,200,100)}%;--hero-x:${cap(boat.cover_x,0,100,50)}%;--hero-y:${cap(boat.cover_y,0,100,50)}%;--hero-overlay:${cap(boat.cover_overlay,0,90,45)/100};${boat.cover_url?`background-image:url('${esc(boat.cover_url)}')`:''}`;
-  $('#app').innerHTML=`<div class="hero" style="${heroStyle}"><div><main><h1>${t.t} <em>${t.s}</em></h1><p class="sub">${esc(boat.name)}</p><div class="links">${links}</div></main></div></div>
+  $('#app').innerHTML=`<div class="hero" style="${boat.cover_url?`background-image:url('${esc(boat.cover_url)}')`:''}"><div><main><h1>${t.t} <em>${t.s}</em></h1><p class="sub">${esc(boat.name)}</p><div class="links">${links}</div></main></div></div>
   <main><h2 class="sec">${t.c}</h2><div class="cats">${cats.map(c=>`<button class="cat ${c.id===sel?'on':''}" data-c="${esc(c.id)}"><span>${esc(c.icon||'•')}</span><b>${esc(tr(c,'name'))}</b></button>`).join('')}</div>
   ${fe.length?`<h2 class="sec">${t.ff}</h2><div class="feat">${fe.map(card).join('')}</div>`:''}
   <h2 class="sec" id="prods">${cur?esc(tr(cur,'name')).toUpperCase():t.p}</h2>
   <div class="list">${cur?(prods.filter(p=>p.category_id===cur.id).map(card).join('')||`<p class="sub">${t.e}</p>`):''}</div></main>`;
 }
-document.addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(!b||!D)return;sel=D.cats.find(c=>String(c.id)===b.dataset.c)?.id;render();document.getElementById('prods').scrollIntoView({behavior:'smooth'})});
+function openP(p){
+  const d=$('#pm'),os=Array.isArray(p.options)?p.options:[];
+  d.innerHTML=`<button class="x" aria-label="Fechar">✕</button>${p.image_url?`<img class="mi" src="${esc(p.image_url)}" alt="">`:''}<div class="pb"><h3>${esc(tr(p,'name'))}</h3>${p.description?`<p class="ds">${esc(tr(p,'description'))}</p>`:''}${p.price!=null?`<div class="pr">${money(p.price)}</div>`:''}${os.map(o=>`<div class="op">${o.image_url?`<img src="${esc(o.image_url)}" alt="">`:''}<div><b>${esc(tr(o,'name'))}</b>${o.description?`<p>${esc(tr(o,'description'))}</p>`:''}</div>${o.price>0?`<span class="pr" style="font-size:15px">+ ${money(o.price)}</span>`:''}</div>`).join('')}</div>`;
+  d.showModal();
+}
+$('#pm').onclick=e=>{if(e.target===e.currentTarget||e.target.closest('.x'))e.currentTarget.close()};
+document.addEventListener('click',e=>{const pc=e.target.closest('[data-p]');if(pc&&D){const p=D.prods.find(x=>String(x.id)===pc.dataset.p);if(p)openP(p);return}const b=e.target.closest('[data-c]');if(!b||!D)return;sel=D.cats.find(c=>String(c.id)===b.dataset.c)?.id;render();document.getElementById('prods').scrollIntoView({behavior:'smooth'})});
 function $(s){return document.querySelector(s)}
 $('#lg').onchange=e=>{lang=e.target.value;try{localStorage.setItem('lang',lang)}catch(x){}render()};
 load();
